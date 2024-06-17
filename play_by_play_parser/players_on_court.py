@@ -78,14 +78,31 @@ def extract_data(url):
 
 play_by_play = pd.read_csv(('data/{}_pbp.csv'.format(game_id)))
 
-substitutionsOnly = play_by_play[play_by_play['EVENTMSGTYPE'] == 8][['PERIOD', 'EVENTNUM', 'PLAYER1_ID', 'PLAYER2_ID']]
-substitutionsOnly.columns = ['PERIOD', 'EVENTNUM', 'OUT', 'IN']
+# Make new column with time remaining in period
+# This is done to handle revisions which have been made after the fact and have EVENTNUMs much higher
+play_by_play['time_left'] = play_by_play['PCTIMESTRING'].apply(lambda x: int(x.split(':')[0]) * 60 + int(x.split(':')[1]))
 
+# Get the substitution events from the play-by-play data
+substitutionsOnly = play_by_play[play_by_play['EVENTMSGTYPE'] == 8][
+    ['PERIOD', 'EVENTNUM', 'time_left', 'PLAYER1_ID', 'PLAYER2_ID']]
+
+# Rename substitution columns for easier readability
+substitutionsOnly.columns = ['PERIOD', 'EVENTNUM', 'time_left', 'OUT', 'IN']
+
+# Split sub-ins and sub-outs into separate data frames
 subs_in = split_subs(substitutionsOnly, 'IN')
 subs_out = split_subs(substitutionsOnly, 'OUT')
 
-full_subs = pd.concat([subs_out, subs_in], axis=0).reset_index()[['PLAYER_ID', 'PERIOD', 'EVENTNUM', 'SUB']]
-first_event_of_period = full_subs.loc[full_subs.groupby(by=['PERIOD', 'PLAYER_ID'])['EVENTNUM'].idxmin()]
+# Recombine subs where sub-ins and sub-outs are now separate rows
+full_subs = pd.concat([subs_out, subs_in], axis=0).reset_index()[
+    ['PLAYER_ID', 'PERIOD', 'EVENTNUM', 'time_left', 'SUB']]
+
+# Sort by the event number
+full_subs = full_subs.sort_values(by='EVENTNUM', ascending=True)
+
+# Get the first substitution of each period for each player
+first_event_of_period = full_subs.loc[full_subs.groupby(by=['PERIOD', 'PLAYER_ID'])['time_left'].idxmax()
+
 players_subbed_in_at_each_period = first_event_of_period[first_event_of_period['SUB'] == 'IN'][
     ['PLAYER_ID', 'PERIOD', 'SUB']]
 
