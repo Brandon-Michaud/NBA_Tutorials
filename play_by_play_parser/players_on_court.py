@@ -89,7 +89,7 @@ first_event_of_period = full_subs.loc[full_subs.groupby(by=['PERIOD', 'PLAYER_ID
 players_subbed_in_at_each_period = first_event_of_period[first_event_of_period['SUB'] == 'IN'][
     ['PLAYER_ID', 'PERIOD', 'SUB']]
 
-periods = players_subbed_in_at_each_period['PERIOD'].drop_duplicates().values.tolist()
+periods = play_by_play['PERIOD'].drop_duplicates().values.tolist()
 
 rows = []
 for period in periods:
